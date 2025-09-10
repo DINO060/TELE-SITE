@@ -2,6 +2,7 @@ export type User = {
   id: string;
   username: string;
   avatar: string;
+  email?: string;
   telegramHandle?: string;
   followers?: number;
   following?: string[];

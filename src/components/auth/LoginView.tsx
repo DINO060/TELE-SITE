@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { MessageCircle, Users, BarChart3, Zap, Shield, Globe } from 'lucide-react';
+import { MessageCircle, Users, BarChart3, Zap, Shield, Globe, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { loginWithEmail, registerWithEmail } from '../../lib/api';
 
 declare global {
   interface Window {
@@ -14,7 +15,54 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    username: '',
+    confirmPassword: ''
+  });
   const botUsername = (import.meta as any).env?.VITE_BOT_USERNAME as string | undefined;
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.password) {
+      setError('Veuillez remplir tous les champs');
+      return;
+    }
+
+    if (mode === 'register') {
+      if (!formData.username) {
+        setError('Le nom d\'utilisateur est requis');
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError('Les mots de passe ne correspondent pas');
+        return;
+      }
+      if (formData.password.length < 6) {
+        setError('Le mot de passe doit contenir au moins 6 caractères');
+        return;
+      }
+    }
+
+    setIsLoggingIn(true);
+    setError(null);
+
+    try {
+      if (mode === 'register') {
+        await registerWithEmail(formData.email, formData.password, formData.username);
+      } else {
+        await loginWithEmail(formData.email, formData.password);
+      }
+      onLogin();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur de connexion');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   // Inject Telegram Login Widget and handle auth
   useEffect(() => {
@@ -105,6 +153,98 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
         {/* Telegram Login (Widget injected here) */}
         <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+          <h3 className="text-lg font-semibold text-white mb-4 text-center">
+            {mode === 'login' ? 'Se connecter' : 'Créer un compte'}
+          </h3>
+          
+          {/* Email/Password Form */}
+          <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+            {mode === 'register' && (
+              <div className="relative">
+                <User size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
+                <input
+                  type="text"
+                  placeholder="Nom d'utilisateur"
+                  value={formData.username}
+                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent"
+                />
+              </div>
+            )}
+            
+            <div className="relative">
+              <Mail size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
+              <input
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent"
+              />
+            </div>
+            
+            <div className="relative">
+              <Lock size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Mot de passe"
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                className="w-full pl-10 pr-12 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            
+            {mode === 'register' && (
+              <div className="relative">
+                <Lock size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Confirmer le mot de passe"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent"
+                />
+              </div>
+            )}
+            
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full bg-white text-blue-600 py-3 px-4 rounded-lg font-semibold hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoggingIn ? 'Chargement...' : (mode === 'login' ? 'Se connecter' : 'Créer le compte')}
+            </button>
+          </form>
+          
+          <div className="text-center mb-4">
+            <button
+              onClick={() => {
+                setMode(mode === 'login' ? 'register' : 'login');
+                setError(null);
+                setFormData({ email: '', password: '', username: '', confirmPassword: '' });
+              }}
+              className="text-white/80 hover:text-white underline text-sm"
+            >
+              {mode === 'login' ? 'Pas de compte ? Créer un compte' : 'Déjà un compte ? Se connecter'}
+            </button>
+          </div>
+          
+          <div className="relative mb-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/30"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-transparent text-white/60">ou</span>
+            </div>
+          </div>
+          
           <div id="telegram-login-container" className="flex justify-center" />
 
           {isLoggingIn && (

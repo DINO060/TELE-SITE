@@ -313,6 +313,49 @@ const initializeMockData = () => {
 initializeMockData();
 
 // API Functions
+export const registerWithEmail = async (email: string, password: string, username: string): Promise<User> => {
+  await delay(1000);
+  
+  // Check if user already exists
+  const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+  if (existingUsers.find((u: any) => u.email === email)) {
+    throw new Error('Un compte avec cet email existe déjà');
+  }
+  
+  const user: User = {
+    id: generateId(),
+    username,
+    avatar: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000000)}?w=200&h=200&fit=crop&crop=face`,
+    email,
+    followers: 0,
+    following: [],
+    verified: false,
+    ownedChannels: [],
+    followingChannels: ['2', '4', '5'], // Auto-follow some channels
+  };
+  
+  // Store user credentials
+  existingUsers.push({ email, password, user });
+  localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+  localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(user));
+  
+  return user;
+};
+
+export const loginWithEmail = async (email: string, password: string): Promise<User> => {
+  await delay(800);
+  
+  const existingUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+  const userRecord = existingUsers.find((u: any) => u.email === email && u.password === password);
+  
+  if (!userRecord) {
+    throw new Error('Email ou mot de passe incorrect');
+  }
+  
+  localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(userRecord.user));
+  return userRecord.user;
+};
+
 export const loginWithTelegramMock = async (): Promise<User> => {
   await delay(500);
   const user: User = {
